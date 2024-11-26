@@ -1,16 +1,4 @@
-// Copyright 2024 Google LLC
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -21,8 +9,8 @@ import 'package:google_generative_ai/google_generative_ai.dart';
 ///
 /// To learn how to generate and specify this key,
 /// check out the README file of this sample.
-// const String _apiKey = String.fromEnvironment('API_KEY');
-const String _apiKey = "AIzaSyB88Y5ctTPAqV0-Omf8ly0pHxHbudtwgQQ";
+const String _apiKey = String.fromEnvironment('API_KEY');
+// const String _apiKey = "AIzaSyB88Y5ctTPAqV0-Omf8ly0pHxHbudtwgQQ";
 
 void main() {
 
