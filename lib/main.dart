@@ -10,15 +10,15 @@ import 'package:google_generative_ai/google_generative_ai.dart';
 /// To learn how to generate and specify this key,
 /// check out the README file of this sample.
 const String _apiKey = String.fromEnvironment('API_KEY');
-// const String _apiKey = "AIzaSyB88Y5ctTPAqV0-Omf8ly0pHxHbudtwgQQ";
+
 
 void main() {
 
-  runApp(const GenerativeAISample());
+  runApp(const GenerativeAI());
 }
 
-class GenerativeAISample extends StatelessWidget {
-  const GenerativeAISample({super.key});
+class GenerativeAI extends StatelessWidget {
+  const GenerativeAI({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -26,6 +26,7 @@ class GenerativeAISample extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'victors',
+      //setting the theme
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
           brightness: Brightness.dark,
