@@ -22,6 +22,7 @@ class GenerativeAI extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // flutter run --dart-define=API_KEY=AIzaSyB88Y5ctTPAqV0-Omf8ly0pHxHbudtwgQQ
 
     return MaterialApp(
       debugShowCheckedModeBanner: false,
