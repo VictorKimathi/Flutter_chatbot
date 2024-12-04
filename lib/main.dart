@@ -1,33 +1,24 @@
-
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
-
-/// The API key to use when accessing the Gemini API.
-///
-/// To learn how to generate and specify this key,
-/// check out the README file of this sample.
-const String _apiKey = String.fromEnvironment('API_KEY');
-
+import 'package:just_audio/just_audio.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 
 void main() {
-
-  runApp(const GenerativeAI());
+  runApp(const GenerativeAIApp());
 }
 
-class GenerativeAI extends StatelessWidget {
-  const GenerativeAI({super.key});
+// Main Application Widget
+class GenerativeAIApp extends StatelessWidget {
+  const GenerativeAIApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // flutter run --dart-define=API_KEY=AIzaSyB88Y5ctTPAqV0-Omf8ly0pHxHbudtwgQQ
-
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'victors',
-      //setting the theme
+      title: 'VyAI',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
           brightness: Brightness.dark,
@@ -35,14 +26,14 @@ class GenerativeAI extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      home: const ChatScreen(title: 'Victors AI'),
+      home: const ChatScreen(title: 'Victor\'s AI'),
     );
   }
 }
 
+// Chat Screen Widget
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key, required this.title});
-
   final String title;
 
   @override
@@ -56,17 +47,14 @@ class _ChatScreenState extends State<ChatScreen> {
       appBar: AppBar(
         title: Text(widget.title),
       ),
-      body: const ChatWidget(apiKey: _apiKey),
+      body: const ChatWidget(apiKey: String.fromEnvironment('API_KEY')),
     );
   }
 }
 
+// Chat Widget
 class ChatWidget extends StatefulWidget {
-  const ChatWidget({
-    required this.apiKey,
-    super.key,
-  });
-
+  const ChatWidget({required this.apiKey, super.key});
   final String apiKey;
 
   @override
@@ -79,9 +67,10 @@ class _ChatWidgetState extends State<ChatWidget> {
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _textController = TextEditingController();
   final FocusNode _textFieldFocus = FocusNode();
-  final List<({Image? image, String? text, bool fromUser})> _generatedContent =
-      <({Image? image, String? text, bool fromUser})>[];
+  final List<({Image? image, String? text, bool fromUser})> _generatedContent = [];
   bool _loading = false;
+
+  final String _promptTemplate = "You're a witty AI who loves to make people laugh. Be humorous and playful in your responses:";
 
   @override
   void initState() {
@@ -95,204 +84,107 @@ class _ChatWidgetState extends State<ChatWidget> {
 
   void _scrollDown() {
     WidgetsBinding.instance.addPostFrameCallback(
-      (_) => _scrollController.animateTo(
+          (_) => _scrollController.animateTo(
         _scrollController.position.maxScrollExtent,
-        duration: const Duration(
-          milliseconds: 750,
-        ),
+        duration: const Duration(milliseconds: 750),
         curve: Curves.easeOutCirc,
       ),
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final textFieldDecoration = InputDecoration(
-      contentPadding: const EdgeInsets.all(15),
-      hintText: 'Enter a prompt...',
-      border: OutlineInputBorder(
-        borderRadius: const BorderRadius.all(
-          Radius.circular(14),
-        ),
-        borderSide: BorderSide(
-          color: Theme.of(context).colorScheme.secondary,
-        ),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: const BorderRadius.all(
-          Radius.circular(14),
-        ),
-        borderSide: BorderSide(
-          color: Theme.of(context).colorScheme.secondary,
-        ),
-      ),
-    );
+  Future<void> _sendChatMessage(String message) async {
+    if (message.trim().isEmpty) return;
 
-    return Padding(
-      padding: const EdgeInsets.all(8.0),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: _apiKey.isNotEmpty
-                ? ListView.builder(
-                    controller: _scrollController,
-                    itemBuilder: (context, idx) {
-                      final content = _generatedContent[idx];
-                      return MessageWidget(
-                        text: content.text,
-                        image: content.image,
-                        isFromUser: content.fromUser,
-                      );
-                    },
-                    itemCount: _generatedContent.length,
-                  )
-                : ListView(
-                    children: const [
-                      Text(
-                        'No API key found. Please provide an API Key using '
-                        "'--dart-define' to set the 'API_KEY' declaration.",
-                      ),
-                    ],
-                  ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              vertical: 25,
-              horizontal: 15,
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    autofocus: true,
-                    focusNode: _textFieldFocus,
-                    decoration: textFieldDecoration,
-                    controller: _textController,
-                    onSubmitted: _sendChatMessage,
-                  ),
-                ),
-                const SizedBox.square(dimension: 15),
-                IconButton(
-                  onPressed: !_loading
-                      ? () async {
-                          _sendImagePrompt(_textController.text);
-                        }
-                      : null,
-                  icon: Icon(
-                    Icons.image,
-                    color: _loading
-                        ? Theme.of(context).colorScheme.secondary
-                        : Theme.of(context).colorScheme.primary,
-                  ),
-                ),
-                if (!_loading)
-                  IconButton(
-                    onPressed: () async {
-                      _sendChatMessage(_textController.text);
-                    },
-                    icon: Icon(
-                      Icons.send,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                  )
-                else
-                  const CircularProgressIndicator(),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _sendImagePrompt(String message) async {
     setState(() {
       _loading = true;
+      _generatedContent.add((image: null, text: message, fromUser: true));
     });
+
     try {
-      ByteData catBytes = await rootBundle.load('assets/images/cat.jpg');
-      ByteData sconeBytes = await rootBundle.load('assets/images/scones.jpg');
-      final content = [
-        Content.multi([
-          TextPart(message),
-          // The only accepted mime types are image/*.
-          DataPart('image/jpeg', catBytes.buffer.asUint8List()),
-          DataPart('image/jpeg', sconeBytes.buffer.asUint8List()),
-        ])
-      ];
-      _generatedContent.add((
-        image: Image.asset("assets/images/cat.jpg"),
-        text: message,
-        fromUser: true
-      ));
-      _generatedContent.add((
-        image: Image.asset("assets/images/scones.jpg"),
-        text: null,
-        fromUser: true
-      ));
+      final response = await _chat.sendMessage(
+        Content.text('$_promptTemplate $message'),
+      );
+      final text = response.text;
 
-      var response = await _model.generateContent(content);
-      var text = response.text;
-      _generatedContent.add((image: null, text: text, fromUser: false));
-
-      if (text == null) {
-        _showError('No response from API.');
-        return;
-      } else {
+      if (text != null) {
         setState(() {
-          _loading = false;
-          _scrollDown();
+          _generatedContent.add((image: null, text: text, fromUser: false));
         });
+      } else {
+        _showError('No response from API.');
       }
     } catch (e) {
       _showError(e.toString());
-      setState(() {
-        _loading = false;
-      });
     } finally {
-      _textController.clear();
       setState(() {
         _loading = false;
+        _textController.clear();
+        _textFieldFocus.requestFocus();
       });
-      _textFieldFocus.requestFocus();
+      _scrollDown();
     }
   }
 
-  Future<void> _sendChatMessage(String message) async {
+  Future<void> _sendImagePrompt(String message) async {
+    if (message.trim().isEmpty) return;
+
     setState(() {
       _loading = true;
     });
 
     try {
-      _generatedContent.add((image: null, text: message, fromUser: true));
-      final response = await _chat.sendMessage(
-        Content.text(message),
-      );
-      final text = response.text;
-      _generatedContent.add((image: null, text: text, fromUser: false));
+      final content = [
+        Content.multi([
+          TextPart('$_promptTemplate $message'),
+          DataPart(
+            'image/jpeg',
+            (await rootBundle.load('assets/images/example.jpg')).buffer.asUint8List(),
+          ),
+        ])
+      ];
 
-      if (text == null) {
-        _showError('No response from API.');
-        return;
-      } else {
+      final response = await _model.generateContent(content);
+      final text = response.text;
+
+      if (text != null) {
         setState(() {
-          _loading = false;
-          _scrollDown();
+          _generatedContent.add((image: null, text: text, fromUser: false));
         });
+      } else {
+        _showError('No response from API.');
       }
     } catch (e) {
       _showError(e.toString());
-      setState(() {
-        _loading = false;
-      });
     } finally {
-      _textController.clear();
       setState(() {
         _loading = false;
+        _textController.clear();
       });
-      _textFieldFocus.requestFocus();
+      _scrollDown();
+    }
+  }
+
+  Future<void> _playTextToSpeech(String text) async {
+    final player = AudioPlayer();
+    try {
+      final response = await http.post(
+        Uri.parse('https://api.elevenlabs.io/v1/text-to-speech'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${String.fromEnvironment('ELEVEN_LABS_API_KEY')}',
+        },
+        body: json.encode({'text': text}),
+      );
+
+      if (response.statusCode == 200) {
+        final bytes = response.bodyBytes;
+        await player.setAudioSource(MyCustomSource(bytes));
+        await player.play();
+      } else {
+        _showError('TTS API failed: ${response.body}');
+      }
+    } catch (e) {
+      _showError(e.toString());
     }
   }
 
@@ -307,26 +199,68 @@ class _ChatWidgetState extends State<ChatWidget> {
           ),
           actions: [
             TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
+              onPressed: () => Navigator.of(context).pop(),
               child: const Text('OK'),
-            )
+            ),
           ],
         );
       },
     );
   }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(8.0),
+      child: Column(
+        children: [
+          Expanded(
+            child: ListView.builder(
+              controller: _scrollController,
+              itemCount: _generatedContent.length,
+              itemBuilder: (context, index) {
+                final content = _generatedContent[index];
+                return MessageWidget(
+                  text: content.text,
+                  image: content.image,
+                  isFromUser: content.fromUser,
+                );
+              },
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    focusNode: _textFieldFocus,
+                    controller: _textController,
+                    decoration: const InputDecoration(
+                      hintText: 'Enter a prompt...',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.all(Radius.circular(14)),
+                      ),
+                    ),
+                    onSubmitted: _sendChatMessage,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.send),
+                  onPressed: () => _sendChatMessage(_textController.text),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
+// Message Widget
 class MessageWidget extends StatelessWidget {
-  const MessageWidget({
-    super.key,
-    this.image,
-    this.text,
-    required this.isFromUser,
-  });
-
+  const MessageWidget({this.image, this.text, required this.isFromUser, super.key});
   final Image? image;
   final String? text;
   final bool isFromUser;
@@ -334,28 +268,42 @@ class MessageWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
-      mainAxisAlignment:
-          isFromUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+      mainAxisAlignment: isFromUser ? MainAxisAlignment.end : MainAxisAlignment.start,
       children: [
-        Flexible(
-            child: Container(
-                constraints: const BoxConstraints(maxWidth: 520),
-                decoration: BoxDecoration(
-                  color: isFromUser
-                      ? Theme.of(context).colorScheme.primaryContainer
-                      : Theme.of(context).colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                padding: const EdgeInsets.symmetric(
-                  vertical: 15,
-                  horizontal: 20,
-                ),
-                margin: const EdgeInsets.only(bottom: 8),
-                child: Column(children: [
-                  if (text case final text?) MarkdownBody(data: text),
-                  if (image case final image?) image,
-                ]))),
+        if (image != null) image! else _buildTextMessage(context),
       ],
     );
   }
-}   
+
+  Widget _buildTextMessage(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: isFromUser
+            ? Theme.of(context).colorScheme.primary
+            : Theme.of(context).colorScheme.secondary,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: MarkdownBody(data: text ?? ''),
+    );
+  }
+}
+
+// Custom Audio Source
+class MyCustomSource extends StreamAudioSource {
+  final List<int> bytes;
+  MyCustomSource(this.bytes);
+
+  @override
+  Future<StreamAudioResponse> request([int? start, int? end]) async {
+    start ??= 0;
+    end ??= bytes.length;
+    return StreamAudioResponse(
+      sourceLength: bytes.length,
+      contentLength: end - start,
+      offset: start,
+      stream: Stream.value(bytes.sublist(start, end)),
+      contentType: 'audio/mpeg',
+    );
+  }
+}
